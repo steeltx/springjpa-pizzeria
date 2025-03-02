@@ -1,8 +1,13 @@
 package com.example.pizza.service;
 
 import com.example.pizza.persistence.entity.PizzaEntity;
+import com.example.pizza.persistence.repository.PizzaPagShortRepository;
 import com.example.pizza.persistence.repository.PizzaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,22 +16,27 @@ import java.util.List;
 public class PizzaService {
 
     private final PizzaRepository pizzaRepository;
+    private final PizzaPagShortRepository pizzaPagShortRepository;
 
     @Autowired
-    public PizzaService(PizzaRepository pizzaRepository){
+    public PizzaService(PizzaRepository pizzaRepository, PizzaPagShortRepository pizzaPagShortRepository){
         this.pizzaRepository = pizzaRepository;
+        this.pizzaPagShortRepository = pizzaPagShortRepository;
     }
 
-    public List<PizzaEntity> getAll(){
-        return this.pizzaRepository.findAll();
+    public Page<PizzaEntity> getAll(int page, int elements){
+        Pageable pageRequest = PageRequest.of(page, elements);
+        return this.pizzaPagShortRepository.findAll(pageRequest);
     }
 
-    public List<PizzaEntity> getAvailable(){
-        return this.pizzaRepository.findAllByAvailableTrueOrderByPrice();
+    public Page<PizzaEntity> getAvailable(int page, int elements, String sortBy, String sortDirection){
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageRequest = PageRequest.of(page, elements, sort);
+        return this.pizzaPagShortRepository.findByAvailableTrue(pageRequest);
     }
 
     public PizzaEntity getByName(String name){
-        return this.pizzaRepository.findAllByAvailableTrueAndNameIgnoreCase(name);
+        return this.pizzaRepository.findFirstByAvailableTrueAndNameIgnoreCase(name).orElseThrow(() -> new RuntimeException("La pizza no existe"));
     }
 
     public List<PizzaEntity> getWith(String ingredient){
@@ -35,6 +45,10 @@ public class PizzaService {
 
     public List<PizzaEntity> getWithout(String ingredient){
         return this.pizzaRepository.findAllByAvailableTrueAndDescriptionNotContainingIgnoreCase(ingredient);
+    }
+
+    public List<PizzaEntity> getCheapest(double price){
+        return this.pizzaRepository.findTop3ByAvailableTrueAndPriceLessThanEqualOrderByPriceAsc(price);
     }
 
     public PizzaEntity get(Integer idPizza){
